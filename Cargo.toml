@@ -1,12 +1,27 @@
 [package]
 name = "wintray"
 version = "0.0.1"
+authors = [
+	"WasmBridge Team",
+]
 edition = "2024"
-
+license = "MIT"
+repository = "https://github.com/wasmbrigde/wasmbrigde"
 [dependencies]
-axum = { version = "0.8.9", default-features = false, features = ["http1", "form", "tokio", "query", "multipart"] }
-tokio = { version = "1.52.1", features = ["rt-multi-thread", "net"] }
-serde = { version = "1.0.228", features = ["derive"] }
+axum = { version = "0.8.9", default-features = false, features = [
+	"http1",
+	"form",
+	"tokio",
+	"query",
+	"multipart",
+] }
+tokio = { version = "1.52.1", features = [
+	"rt-multi-thread",
+	"net",
+] }
+serde = { version = "1.0.228", features = [
+	"derive",
+] }
 serde_yml = "0.0.12"
 askama = "0.15.6"
 tray-icon = "0.22.1"
