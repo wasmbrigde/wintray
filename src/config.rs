@@ -9,9 +9,9 @@ pub fn get_config_path() -> PathBuf {
     path
 }
 
-pub fn load_config<T>() -> T 
-where 
-    T: for<'de> Deserialize<'de> + Serialize + Default 
+pub fn load_config<T>() -> T
+where
+    T: for<'de> Deserialize<'de> + Serialize + Default,
 {
     let path = get_config_path();
     if !path.exists() {
@@ -34,9 +34,9 @@ where
     }
 }
 
-pub fn save_config<T>(config: &T) -> Result<(), String> 
-where 
-    T: Serialize 
+pub fn save_config<T>(config: &T) -> Result<(), String>
+where
+    T: Serialize,
 {
     let path = get_config_path();
     let yaml = serde_yml::to_string(config).map_err(|e| e.to_string())?;

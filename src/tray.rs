@@ -54,11 +54,7 @@ fn load_svg_icon(svg_data: &[u8]) -> Icon {
     let size = rtree.size().to_int_size();
     let mut pixmap = tiny_skia::Pixmap::new(size.width(), size.height()).unwrap();
 
-    resvg::render(
-        &rtree,
-        tiny_skia::Transform::default(),
-        &mut pixmap.as_mut(),
-    );
+    resvg::render(&rtree, tiny_skia::Transform::default(), &mut pixmap.as_mut());
 
     Icon::from_rgba(pixmap.data().to_vec(), size.width(), size.height()).unwrap()
 }

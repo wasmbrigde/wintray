@@ -1,4 +1,4 @@
-use crate::tray::{create_tray, TrayConfig, TrayUserEvent};
+use crate::tray::{TrayConfig, TrayUserEvent, create_tray};
 use axum::Router;
 use std::thread;
 use tao::event_loop::{ControlFlow, EventLoopBuilder, EventLoopProxy};
@@ -11,11 +11,7 @@ pub struct ServiceEngine {
 
 impl ServiceEngine {
     pub fn new(tray_config: TrayConfig, router: Router, address: String) -> Self {
-        Self {
-            tray_config,
-            router,
-            address,
-        }
+        Self { tray_config, router, address }
     }
 
     pub fn run<F>(self, mut event_handler: F)
@@ -23,7 +19,7 @@ impl ServiceEngine {
         F: FnMut(TrayUserEvent, &EventLoopProxy<TrayUserEvent>, &mut ControlFlow) + 'static,
     {
         let address = self.address.clone();
-        
+
         // Используем роутер приложения напрямую
         let router = self.router;
 
