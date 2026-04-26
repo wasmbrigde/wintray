@@ -24,10 +24,8 @@ impl ServiceEngine {
     {
         let address = self.address.clone();
         
-        // Склеиваем роуты фреймворка и приложения
-        let router = Router::new()
-            .route("/service-assets/{*path}", axum::routing::get(crate::assets::framework_assets_handler))
-            .merge(self.router);
+        // Используем роутер приложения напрямую
+        let router = self.router;
 
         // 1. Запуск сервера
         thread::spawn(move || {
