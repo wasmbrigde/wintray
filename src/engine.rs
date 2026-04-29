@@ -1,29 +1,91 @@
 use crate::tray::{TrayConfig, TrayUserEvent, create_tray};
 use axum::Router;
 use std::thread;
-use tao::event_loop::{ControlFlow, EventLoopBuilder, EventLoopProxy};
+use tao::event_loop::{ControlFlow, EventLoopBuilder};
 
-pub struct ServiceEngine {
-    pub tray_config: TrayConfig,
-    pub router: Router,
-    pub address: String,
+pub struct WintrayAppBuilder {
+    tooltip: String,
+    icon_svg_bytes: Option<&'static [u8]>,
+    router: Option<Router>,
+    address: Option<String>,
+    custom_menu_items: Vec<(String, String)>,
 }
 
-impl ServiceEngine {
-    pub fn new(tray_config: TrayConfig, router: Router, address: String) -> Self {
-        Self { tray_config, router, address }
+impl Default for WintrayAppBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl WintrayAppBuilder {
+    pub fn new() -> Self {
+        Self {
+            tooltip: String::new(),
+            icon_svg_bytes: None,
+            router: None,
+            address: None,
+            custom_menu_items: Vec::new(),
+        }
     }
 
-    pub fn run<F>(self, mut event_handler: F)
+    pub fn with_tooltip(mut self, tooltip: impl Into<String>) -> Self {
+        self.tooltip = tooltip.into();
+        self
+    }
+
+    pub fn with_icon(mut self, icon_svg_bytes: &'static [u8]) -> Self {
+        self.icon_svg_bytes = Some(icon_svg_bytes);
+        self
+    }
+
+    pub fn with_router(mut self, router: Router) -> Self {
+        self.router = Some(router);
+        self
+    }
+
+    pub fn with_address(mut self, address: impl Into<String>) -> Self {
+        self.address = Some(address.into());
+        self
+    }
+
+    pub fn add_menu_item(mut self, id: impl Into<String>, label: impl Into<String>) -> Self {
+        self.custom_menu_items.push((id.into(), label.into()));
+        self
+    }
+
+    pub fn build(self) -> WintrayApp {
+        WintrayApp {
+            tray_config: TrayConfig {
+                tooltip: self.tooltip,
+                icon_svg_bytes: self.icon_svg_bytes.expect("Icon must be set before building"),
+                custom_menu_items: self.custom_menu_items,
+            },
+            router: self.router.expect("Router must be set before building"),
+            address: self.address.expect("Address must be set before building"),
+        }
+    }
+}
+
+pub struct WintrayApp {
+    tray_config: TrayConfig,
+    router: Router,
+    address: String,
+}
+
+impl WintrayApp {
+    pub fn run(self) {
+        self.run_with(|_| {});
+    }
+
+    pub fn run_with<F>(self, mut custom_handler: F)
     where
-        F: FnMut(TrayUserEvent, &EventLoopProxy<TrayUserEvent>, &mut ControlFlow) + 'static,
+        F: FnMut(&str) + 'static,
     {
         let address = self.address.clone();
-
-        // Используем роутер приложения напрямую
-        let router = self.router;
+        let ui_address = address.clone();
 
         // 1. Запуск сервера
+        let router = self.router;
         thread::spawn(move || {
             let rt = tokio::runtime::Runtime::new().unwrap();
             rt.block_on(async {
@@ -42,7 +104,27 @@ impl ServiceEngine {
             *control_flow = ControlFlow::Wait;
 
             if let tao::event::Event::UserEvent(user_event) = event {
-                event_handler(user_event, &proxy, control_flow);
+                match user_event {
+                    TrayUserEvent::TrayIconEvent(tray_event) => {
+                        if let tray_icon::TrayIconEvent::Click {
+                            button: tray_icon::MouseButton::Left,
+                            button_state: tray_icon::MouseButtonState::Up,
+                            ..
+                        } = tray_event
+                        {
+                            let _ = open::that(format!("http://{}", ui_address));
+                        }
+                    }
+                    TrayUserEvent::MenuEvent(menu_event) => {
+                        if menu_event.id == "open" {
+                            let _ = open::that(format!("http://{}", ui_address));
+                        } else if menu_event.id == "close" {
+                            *control_flow = ControlFlow::Exit;
+                        } else {
+                            custom_handler(menu_event.id.as_ref());
+                        }
+                    }
+                }
             }
         });
     }

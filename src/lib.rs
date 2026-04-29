@@ -4,3 +4,5 @@ compile_error!("Этот проект поддерживает только Wind
 pub mod config;
 pub mod engine;
 pub mod tray;
+
+pub use engine::{WintrayApp, WintrayAppBuilder};
