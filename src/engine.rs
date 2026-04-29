@@ -1,5 +1,5 @@
 use crate::tray::{TrayConfig, TrayUserEvent, create_tray};
-use axum::Router;
+use axum::{Router, routing::get};
 use std::thread;
 use tao::event_loop::{ControlFlow, EventLoopBuilder};
 
@@ -20,7 +20,7 @@ impl Default for WintrayAppBuilder {
 impl WintrayAppBuilder {
     pub fn new() -> Self {
         Self {
-            tooltip: String::new(),
+            tooltip: "Wintray Application".into(),
             icon_svg_bytes: None,
             router: None,
             address: None,
@@ -54,14 +54,19 @@ impl WintrayAppBuilder {
     }
 
     pub fn build(self) -> WintrayApp {
+        let router = self.router.unwrap_or_else(|| {
+            Router::new().route("/", get(|| async { "Wintray App is running" }))
+        });
+        let address = self.address.unwrap_or_else(|| "127.0.0.1:9876".to_string());
+
         WintrayApp {
             tray_config: TrayConfig {
                 tooltip: self.tooltip,
-                icon_svg_bytes: self.icon_svg_bytes.expect("Icon must be set before building"),
+                icon_svg_bytes: self.icon_svg_bytes.expect("Icon must be set before building (use .with_icon())"),
                 custom_menu_items: self.custom_menu_items,
             },
-            router: self.router.expect("Router must be set before building"),
-            address: self.address.expect("Address must be set before building"),
+            router,
+            address,
         }
     }
 }
