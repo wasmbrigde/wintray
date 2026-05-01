@@ -2,17 +2,20 @@ use tao::event_loop::EventLoopProxy;
 use tray_icon::menu::{Menu, MenuEvent, MenuItem};
 use tray_icon::{Icon, TrayIcon, TrayIconBuilder, TrayIconEvent};
 
+/// Events emitted by the tray icon and its context menu.
 pub enum TrayUserEvent {
     TrayIconEvent(TrayIconEvent),
     MenuEvent(MenuEvent),
 }
 
+/// Configuration for the system tray icon.
 pub struct TrayConfig {
     pub tooltip: String,
     pub icon_svg_bytes: &'static [u8],
     pub custom_menu_items: Vec<(String, String)>, // (id, label)
 }
 
+/// Creates a new system tray icon with the specified configuration.
 pub fn create_tray(proxy: EventLoopProxy<TrayUserEvent>, config: TrayConfig) -> TrayIcon {
     let proxy_clone = proxy.clone();
     TrayIconEvent::set_event_handler(Some(move |event| {
@@ -25,16 +28,16 @@ pub fn create_tray(proxy: EventLoopProxy<TrayUserEvent>, config: TrayConfig) -> 
     }));
 
     let menu = Menu::new();
-    let open_item = MenuItem::with_id("open", "Открыть", true, None);
+    let open_item = MenuItem::with_id("open", "Open UI", true, None);
     let _ = menu.append_items(&[&open_item]);
 
-    // Добавляем кастомные пункты
+    // Add user-defined custom menu items.
     for (id, label) in &config.custom_menu_items {
         let item = MenuItem::with_id(id, label, true, None);
         let _ = menu.append_items(&[&item]);
     }
 
-    let close_item = MenuItem::with_id("close", "Закрыть", true, None);
+    let close_item = MenuItem::with_id("close", "Quit", true, None);
     let _ = menu.append_items(&[&close_item]);
 
     let icon = load_svg_icon(config.icon_svg_bytes);
@@ -47,6 +50,7 @@ pub fn create_tray(proxy: EventLoopProxy<TrayUserEvent>, config: TrayConfig) -> 
         .unwrap()
 }
 
+/// Helper function to load and render an SVG icon into a format usable by the tray.
 fn load_svg_icon(svg_data: &[u8]) -> Icon {
     let opt = usvg::Options::default();
     let rtree = usvg::Tree::from_data(svg_data, &opt).expect("Failed to parse SVG");

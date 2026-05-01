@@ -6,10 +6,12 @@ use axum::{
 };
 use rust_embed::RustEmbed;
 
+/// Embedded static assets for the framework UI.
 #[derive(RustEmbed)]
 #[folder = "assets/"]
 pub struct FrameworkAssets;
 
+/// Axum handler that serves embedded static assets from the `assets/` directory.
 pub async fn framework_assets_handler(Path(path): Path<String>) -> impl IntoResponse {
     let path = path.trim_start_matches('/');
 

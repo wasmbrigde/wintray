@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
 
+/// Returns the default path for the configuration file (next to the executable).
 pub fn get_config_path() -> PathBuf {
     let mut path = std::env::current_exe().unwrap();
     path.pop();
@@ -9,6 +10,10 @@ pub fn get_config_path() -> PathBuf {
     path
 }
 
+/// Loads a YAML configuration file into a struct.
+/// 
+/// If the file does not exist, it creates it with the default values 
+/// of the specified type `T`.
 pub fn load_config<T>() -> T
 where
     T: for<'de> Deserialize<'de> + Serialize + Default,
@@ -34,6 +39,7 @@ where
     }
 }
 
+/// Saves the specified configuration struct to the YAML configuration file.
 pub fn save_config<T>(config: &T) -> Result<(), String>
 where
     T: Serialize,
