@@ -1,11 +1,11 @@
 use crate::tray::{TrayConfig, TrayUserEvent, create_tray};
-use axum::{Router, routing::get, response::Html};
 use askama::Template;
+use axum::{Router, response::Html, routing::get};
 use rust_embed::RustEmbed;
 use tao::event_loop::{ControlFlow, EventLoopBuilder};
 
 /// Builder for the [`WintrayApp`].
-/// 
+///
 /// Allows configuring the tray icon, tooltip, web router, and custom menu items.
 pub struct WintrayAppBuilder {
     tooltip: String,
@@ -38,7 +38,7 @@ impl WintrayAppBuilder {
         self
     }
 
-    /// Sets the SVG icon for the tray. 
+    /// Sets the SVG icon for the tray.
     /// The bytes should be a valid SVG string.
     pub fn with_icon(mut self, icon_svg_bytes: &'static [u8]) -> Self {
         self.icon_svg_bytes = Some(icon_svg_bytes);
@@ -60,7 +60,7 @@ impl WintrayAppBuilder {
         let path_str = path.into();
         let prefix = path_str.trim_end_matches('/');
         let router = self.router.unwrap_or_default();
-        
+
         self.router = Some(router.route(
             &format!("{}/{{*path}}", prefix),
             get(crate::assets::serve_embedded_assets::<T>),
@@ -70,14 +70,18 @@ impl WintrayAppBuilder {
 
     /// Sets the index page (/) to render the provided Askama template.
     /// The template must implement `Clone` and `Send + Sync + 'static`.
-    pub fn with_index_template<T: Template + Clone + Send + Sync + 'static>(mut self, template: T) -> Self {
+    pub fn with_index_template<T: Template + Clone + Send + Sync + 'static>(
+        mut self,
+        template: T,
+    ) -> Self {
         let router = self.router.unwrap_or_default();
-        self.router = Some(router.route("/", get(move || {
-            let t = template.clone();
-            async move {
-                Html(t.render().unwrap())
-            }
-        })));
+        self.router = Some(router.route(
+            "/",
+            get(move || {
+                let t = template.clone();
+                async move { Html(t.render().unwrap()) }
+            }),
+        ));
         self
     }
 
@@ -94,7 +98,7 @@ impl WintrayAppBuilder {
     }
 
     /// Builds the [`WintrayApp`] instance.
-    /// 
+    ///
     /// # Panics
     /// Panics if the icon was not set using `.with_icon()`.
     pub fn build(self) -> WintrayApp {
@@ -131,7 +135,7 @@ impl WintrayApp {
     }
 
     /// Starts the application with a custom handler for tray menu events.
-    /// 
+    ///
     /// The `custom_handler` closure is called with the ID of the clicked menu item.
     pub fn run_with<F>(self, mut custom_handler: F)
     where

@@ -11,8 +11,8 @@ pub fn get_config_path() -> PathBuf {
 }
 
 /// Loads a YAML configuration file into a struct.
-/// 
-/// If the file does not exist, it creates it with the default values 
+///
+/// If the file does not exist, it creates it with the default values
 /// of the specified type `T`.
 pub fn load_config<T>() -> T
 where
