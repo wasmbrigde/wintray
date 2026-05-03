@@ -1,5 +1,7 @@
 use crate::tray::{TrayConfig, TrayUserEvent, create_tray};
-use axum::{Router, routing::get};
+use axum::{Router, routing::get, response::Html};
+use askama::Template;
+use rust_embed::RustEmbed;
 use tao::event_loop::{ControlFlow, EventLoopBuilder};
 
 /// Builder for the [`WintrayApp`].
@@ -44,8 +46,38 @@ impl WintrayAppBuilder {
     }
 
     /// Configures the Axum router for the embedded web UI.
+    /// If a router is already set, the new one will be merged into it.
     pub fn with_router(mut self, router: Router) -> Self {
-        self.router = Some(router);
+        self.router = Some(match self.router {
+            Some(existing) => existing.merge(router),
+            None => router,
+        });
+        self
+    }
+
+    /// Automatically configures an Axum route to serve static assets from a `RustEmbed` implementation.
+    pub fn with_assets<T: RustEmbed + 'static>(mut self, path: impl Into<String>) -> Self {
+        let path_str = path.into();
+        let prefix = path_str.trim_end_matches('/');
+        let router = self.router.unwrap_or_default();
+        
+        self.router = Some(router.route(
+            &format!("{}/{{*path}}", prefix),
+            get(crate::assets::serve_embedded_assets::<T>),
+        ));
+        self
+    }
+
+    /// Sets the index page (/) to render the provided Askama template.
+    /// The template must implement `Clone` and `Send + Sync + 'static`.
+    pub fn with_index_template<T: Template + Clone + Send + Sync + 'static>(mut self, template: T) -> Self {
+        let router = self.router.unwrap_or_default();
+        self.router = Some(router.route("/", get(move || {
+            let t = template.clone();
+            async move {
+                Html(t.render().unwrap())
+            }
+        })));
         self
     }
 
