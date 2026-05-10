@@ -24,15 +24,13 @@ pub fn wintray_template(_args: TokenStream, input: TokenStream) -> TokenStream {
     let mod_name = format!("__wintray_askama_{}", item.ident);
     let mod_ident = syn::Ident::new(&mod_name, proc_macro2::Span::call_site());
 
-    if let Some(index) = template_attr_index {
-        if !has_askama {
-            let attr = &mut item.attrs[index];
-            if let syn::Meta::List(list) = &attr.meta {
-                let old_tokens = &list.tokens;
-                attr.meta = parse_quote! {
-                    template(askama = self::#mod_ident, #old_tokens)
-                };
-            }
+    if let (Some(index), false) = (template_attr_index, has_askama) {
+        let attr = &mut item.attrs[index];
+        if let syn::Meta::List(list) = &attr.meta {
+            let old_tokens = &list.tokens;
+            attr.meta = parse_quote! {
+                template(askama = self::#mod_ident, #old_tokens)
+            };
         }
     }
 

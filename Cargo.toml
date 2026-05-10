@@ -26,11 +26,11 @@ tokio = { version = "1.52.1", features = [
 serde = { version = "1.0.228", features = [
 	"derive",
 ] }
-serde_yml = "0.0.12"
+toml = "0.8"
 askama = "0.15.6"
-tray-icon = "0.22.1"
+tray-icon = "0.24.0"
 open = "5.3.4"
-tao = "0.35.0"
+tao = "0.35.2"
 resvg = { version = "0.47.0", default-features = false }
 usvg = { version = "0.47.0", default-features = false }
 tiny-skia = "0.12.0"
