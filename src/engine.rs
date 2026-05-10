@@ -1,6 +1,12 @@
 use crate::tray::{TrayConfig, TrayUserEvent, create_tray};
 use askama::Template;
-use axum::{Router, response::Html, routing::get};
+use poem::{
+    EndpointExt, FromRequest, Route, Server,
+    endpoint::{BoxEndpoint, make},
+    get,
+    listener::{Listener, RustlsConfig, TcpListener},
+    web::{Html, Path},
+};
 use rust_embed::RustEmbed;
 use tao::event_loop::{ControlFlow, EventLoopBuilder};
 
@@ -10,7 +16,7 @@ use tao::event_loop::{ControlFlow, EventLoopBuilder};
 pub struct WintrayAppBuilder {
     tooltip: String,
     icon_svg_bytes: Option<&'static [u8]>,
-    router: Option<Router>,
+    router: Route,
     address: Option<String>,
     custom_menu_items: Vec<(String, String)>,
 }
@@ -26,7 +32,7 @@ impl WintrayAppBuilder {
         Self {
             tooltip: "Wintray Application".into(),
             icon_svg_bytes: None,
-            router: None,
+            router: Route::new(),
             address: None,
             custom_menu_items: Vec::new(),
         }
@@ -45,26 +51,31 @@ impl WintrayAppBuilder {
         self
     }
 
-    /// Configures the Axum router for the embedded web UI.
-    /// If a router is already set, the new one will be merged into it.
-    pub fn with_router(mut self, router: Router) -> Self {
-        self.router = Some(match self.router {
-            Some(existing) => existing.merge(router),
-            None => router,
-        });
+    /// Configures the Poem endpoint for the embedded web UI.
+    pub fn with_router<E>(mut self, router: E) -> Self
+    where
+        E: poem::IntoEndpoint + 'static,
+        E::Endpoint: 'static,
+    {
+        self.router = self.router.nest("/", router);
         self
     }
 
-    /// Automatically configures an Axum route to serve static assets from a `RustEmbed` implementation.
-    pub fn with_assets<T: RustEmbed + 'static>(mut self, path: impl Into<String>) -> Self {
+    /// Automatically configures a Poem route to serve static assets from a `RustEmbed` implementation.
+    pub fn with_assets<T: RustEmbed + Send + Sync + 'static>(
+        mut self,
+        path: impl Into<String>,
+    ) -> Self {
         let path_str = path.into();
         let prefix = path_str.trim_end_matches('/');
-        let router = self.router.unwrap_or_default();
 
-        self.router = Some(router.route(
-            &format!("{}/{{*path}}", prefix),
-            get(crate::assets::serve_embedded_assets::<T>),
-        ));
+        self.router = self.router.at(
+            format!("{}/:path", prefix),
+            get(make(move |req| async move {
+                let path: Path<String> = Path::from_request_without_body(&req).await.unwrap();
+                crate::assets::serve_embedded_assets::<T>(path).await
+            })),
+        );
         self
     }
 
@@ -74,14 +85,13 @@ impl WintrayAppBuilder {
         mut self,
         template: T,
     ) -> Self {
-        let router = self.router.unwrap_or_default();
-        self.router = Some(router.route(
+        self.router = self.router.at(
             "/",
-            get(move || {
+            get(make(move |_| {
                 let t = template.clone();
                 async move { Html(t.render().unwrap()) }
-            }),
-        ));
+            })),
+        );
         self
     }
 
@@ -102,9 +112,6 @@ impl WintrayAppBuilder {
     /// # Panics
     /// Panics if the icon was not set using `.with_icon()`.
     pub fn build(self) -> WintrayApp {
-        let router = self.router.unwrap_or_else(|| {
-            Router::new().route("/", get(|| async { "Wintray App is running" }))
-        });
         let address = self.address.unwrap_or_else(|| "127.0.0.1:9876".to_string());
 
         WintrayApp {
@@ -115,7 +122,7 @@ impl WintrayAppBuilder {
                     .expect("Icon must be set before building (use .with_icon())"),
                 custom_menu_items: self.custom_menu_items,
             },
-            router,
+            router: self.router.boxed(),
             address,
         }
     }
@@ -124,7 +131,7 @@ impl WintrayAppBuilder {
 /// The main application handle.
 pub struct WintrayApp {
     tray_config: TrayConfig,
-    router: Router,
+    router: BoxEndpoint<'static>,
     address: String,
 }
 
@@ -161,12 +168,13 @@ impl WintrayApp {
                 std::fs::write(key_path, cert.key_pair.serialize_pem()).unwrap();
             }
 
-            let config = axum_server::tls_rustls::RustlsConfig::from_pem_file(cert_path, key_path)
-                .await
-                .unwrap();
+            let cert = std::fs::read(cert_path).unwrap();
+            let key = std::fs::read(key_path).unwrap();
+            let config = RustlsConfig::new()
+                .fallback(poem::listener::RustlsCertificate::new().cert(cert).key(key));
 
-            let addr: std::net::SocketAddr = address.parse().unwrap();
-            axum_server::bind_rustls(addr, config).serve(router.into_make_service()).await.unwrap();
+            let listener = TcpListener::bind(address).rustls(config);
+            Server::new(listener).run(router).await.unwrap();
         });
 
         // 2. Setup the Event Loop for tray interactions.

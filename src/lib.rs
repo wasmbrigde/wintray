@@ -12,8 +12,8 @@ pub mod tray;
 
 // Re-export common dependencies to reduce boilerplate in projects
 pub use askama;
-pub use axum;
 pub use mime_guess;
+pub use poem;
 pub use rust_embed;
 pub use rustls;
 pub use serde;
@@ -23,16 +23,20 @@ pub mod exports {
     pub use crate::wintray_assets;
     pub use crate::wintray_template;
     pub use askama::Template;
-    pub use axum::{
-        self, Router,
-        body::Bytes,
-        extract::{Form, Multipart, Path, Query, State},
+    pub use poem::{
+        self, delete, get, handler, head,
         http::{HeaderMap, Method, StatusCode},
-        response::{Html, IntoResponse, Response},
-        routing::{any, get, post},
+        patch, post, put,
+        web::{Data, Form, Html, Multipart, Path, Query},
+        Body, Endpoint, EndpointExt, IntoEndpoint, IntoResponse, Response, Route,
     };
     pub use rust_embed::RustEmbed;
     pub use serde::{Deserialize, Serialize};
+}
+
+/// A prelude for Wintray applications, re-exporting commonly used types.
+pub mod prelude {
+    pub use super::exports::*;
 }
 
 pub use engine::{WintrayApp, WintrayAppBuilder};

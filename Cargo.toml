@@ -12,11 +12,8 @@ name = "wintray"
 path = "src/lib.rs"
 [dependencies]
 wintray-macros = { path = "./macros" }
-axum = { version = "0.8.9", default-features = false, features = [
-	"http1",
-	"form",
-	"tokio",
-	"query",
+poem = { version = "3.0.5", features = [
+	"rustls",
 	"multipart",
 ] }
 tokio = { version = "1.52.1", features = [
@@ -32,12 +29,9 @@ open = "5.3.4"
 resvg = { version = "0.47.0", default-features = false }
 usvg = { version = "0.47.0", default-features = false }
 tiny-skia = "0.12.0"
-rust-embed = { version = "8.11.0", features = ["axum"] }
+rust-embed = "8.11.0"
 mime_guess = { version = "2.0.5", default-features = false }
 rcgen = "0.13"
-axum-server = { version = "0.7", features = [
-	"tls-rustls",
-] }
 rustls = { version = "0.23", features = [
 	"ring",
 ] }
